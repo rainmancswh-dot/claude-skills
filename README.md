@@ -18,30 +18,30 @@
 
 ## 安装
 
-### 方式一：一键安装（推荐）
-
-```bash
-git clone https://github.com/rainmancswh-dot/claude-skills.git /tmp/claude-skills
-bash /tmp/claude-skills/install.sh
-```
-
-### 方式二：只安装指定 skill
-
-```bash
-bash /tmp/claude-skills/install.sh api-design flow-extract
-```
-
-### 方式三：curl 一行安装
+### 方式一：curl 一行安装（推荐）
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh)
 ```
 
-> 注意：curl 方式需要先将仓库推到 GitHub。此方式会 clone 仓库到临时目录后执行安装。
+自动检测远程执行，clone 仓库后安装。支持指定 skill：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh) api-design flow-extract
+```
+
+### 方式二：克隆后安装
+
+```bash
+git clone https://github.com/rainmancswh-dot/claude-skills.git
+bash claude-skills/install.sh              # 全装
+bash claude-skills/install.sh api-design   # 只装一个
+```
 
 ## 卸载
 
 ```bash
+git clone https://github.com/rainmancswh-dot/claude-skills.git /tmp/claude-skills
 bash /tmp/claude-skills/uninstall.sh
 # 或只卸载指定的
 bash /tmp/claude-skills/uninstall.sh frontend-test

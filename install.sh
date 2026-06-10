@@ -2,12 +2,14 @@
 set -euo pipefail
 
 # Claude Code Skills Installer
-# Usage: ./install.sh [skill-name...]
-#   No args  → install all 3 skills
-#   With args → install only named skills (api-design, flow-extract, frontend-test)
+# Usage:
+#   Local:  ./install.sh [skill-name...]
+#   Remote: bash <(curl -fsSL .../install.sh) [skill-name...]
+#   No args → install all 3 skills
 
+REPO="rainmancswh-dot/claude-skills"
+BRANCH="main"
 SKILLS_DIR="$HOME/.claude/skills"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 AVAILABLE_SKILLS=(api-design flow-extract frontend-test)
 
 # Colors
@@ -19,6 +21,26 @@ NC='\033[0m'
 info()  { echo -e "${GREEN}✓${NC} $1"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $1"; }
 error() { echo -e "${RED}✗${NC} $1"; }
+
+# Detect if running remotely (curl | bash) — no local skill files
+SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+REMOTE_MODE=false
+
+if [ ! -d "$SCRIPT_DIR/api-design" ]; then
+  REMOTE_MODE=true
+  CLONE_DIR=$(mktemp -d)
+  cleanup() { rm -rf "$CLONE_DIR"; }
+  trap cleanup EXIT
+
+  echo ""
+  echo "📦 Remote install detected, cloning $REPO..."
+  if ! git clone --depth 1 -b "$BRANCH" "https://github.com/$REPO.git" "$CLONE_DIR" 2>/dev/null; then
+    error "Failed to clone https://github.com/$REPO"
+    exit 1
+  fi
+  SCRIPT_DIR="$CLONE_DIR"
+  info "Cloned successfully"
+fi
 
 # Determine which skills to install
 if [ $# -eq 0 ]; then
@@ -45,7 +67,6 @@ echo ""
 mkdir -p "$SKILLS_DIR"
 
 INSTALLED=()
-SKIPPED=()
 FAILED=()
 
 for skill in "${INSTALL_SKILLS[@]}"; do
@@ -53,7 +74,7 @@ for skill in "${INSTALL_SKILLS[@]}"; do
   SOURCE="$SCRIPT_DIR/$skill"
 
   if [ ! -d "$SOURCE" ]; then
-    error "$skill: source directory not found (are you running from the repo root?)"
+    error "$skill: source directory not found"
     FAILED+=("$skill")
     continue
   fi
@@ -79,9 +100,6 @@ echo ""
 echo "── Results ──────────────────────"
 if [ ${#INSTALLED[@]} -gt 0 ]; then
   info "Installed: ${INSTALLED[*]}"
-fi
-if [ ${#SKIPPED[@]} -gt 0 ]; then
-  warn "Skipped: ${SKIPPED[*]}"
 fi
 if [ ${#FAILED[@]} -gt 0 ]; then
   error "Failed: ${FAILED[*]}"
