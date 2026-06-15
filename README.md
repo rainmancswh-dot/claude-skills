@@ -1,6 +1,6 @@
-# 🛠 Claude Code Skills — API Design to Frontend Testing Pipeline
+# 🛠 Claude Code Skills — Spec-Driven Frontend Pipeline
 
-三个 Claude Code 自定义 skill，覆盖从 API 设计到前端测试的完整前端开发流程。
+五个 Claude Code 自定义 skill，覆盖从 API 设计到前端开发、验证、测试的完整流程。
 
 ## Skills
 
@@ -8,60 +8,80 @@
 |-------|------|------|
 | **api-design** | `/api-design` | 从设计文档自动生成 API 契约（OpenAPI YAML + Markdown） |
 | **flow-extract** | `/flow-extract` | 从 API 契约推断前端页面结构和交互流程 |
+| **spec-dev** | `/spec-dev` | 按规格文档驱动开发，注入上下文到子 agent，自动验证打回 |
+| **spec-verify** | `/spec-verify` | 检查代码与 API 契约、交互流程的一致性 |
 | **frontend-test** | `/frontend-test` | 自动化前端组件测试，含自修复循环 |
 
 ### 流水线关系
 
 ```
-/api-design → api-contract.md/yaml → /flow-extract → flows.md → /frontend-test
+/api-design → api-contract.md/yaml
+                ↓
+          /flow-extract → flows.md
+                ↓
+          /spec-dev → 代码（调用 /spec-verify 验证，不过则打回重试）
+                ↓
+          /frontend-test → 组件测试
 ```
 
 ## 安装
 
-### 方式一：curl 一行安装（推荐）
+### 方式一：curl 一行安装（推荐，默认装 3 个核心 skill）
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh)
 ```
 
-自动检测远程执行，clone 仓库后安装。支持指定 skill：
+自动检测远程执行，clone 仓库后安装。
+
+### 装指定 skill 或全部（含 spec-dev / spec-verify）
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh) api-design flow-extract
+# 全部 5 个
+bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh) --all
+
+# 指定
+bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh) api-design spec-dev spec-verify
 ```
 
 ### 方式二：克隆后安装
 
 ```bash
 git clone https://github.com/rainmancswh-dot/claude-skills.git
-bash claude-skills/install.sh              # 全装
-bash claude-skills/install.sh api-design   # 只装一个
+bash claude-skills/install.sh              # 默认 3 个核心 skill
+bash claude-skills/install.sh --all        # 全部 5 个
+bash claude-skills/install.sh spec-dev     # 指定
 ```
 
 ## 卸载
 
 ```bash
 git clone https://github.com/rainmancswh-dot/claude-skills.git /tmp/claude-skills
-bash /tmp/claude-skills/uninstall.sh
-# 或只卸载指定的
-bash /tmp/claude-skills/uninstall.sh frontend-test
+bash /tmp/claude-skills/uninstall.sh            # 卸载全部已安装的
+bash /tmp/claude-skills/uninstall.sh spec-dev   # 只卸载指定的
 ```
 
 ## 前置依赖
 
 ### api-design
-
 - **必需**：Git 仓库
 - **可选**：gstack 的 `/office-hours` 输出（设计文档）和 `/plan-eng-review` 输出（技术方案）
 - 没有设计文档也能用，但需要手动描述需求
 
 ### flow-extract
-
 - **必需**：`api-contract.md`（由 `/api-design` 生成）
 - **可选**：设计文档、eng-review 输出
 
-### frontend-test
+### spec-dev
+- **必需**：`DESIGN.md` + `api-contract.yaml` + `flows.md`（三件套缺一不可，缺则 STOP）
+- **可选**：`open-design-prompt.md`（样式 prompt）、项目 `CLAUDE.md`
+- 依赖 spec-verify（开发后自动调用验证）
 
+### spec-verify
+- **必需**：`api-contract.yaml` + `flows.md`
+- 通常由 spec-dev 自动调用，也可手动运行
+
+### frontend-test
 - **必需**：前端项目（React / Vue / Next.js），已安装 Vitest + Testing Library
 - **可选**：gstack browse（用于失败组件截图）
 - 自动检测框架和测试依赖，缺少时会提示安装命令
@@ -84,6 +104,25 @@ bash /tmp/claude-skills/uninstall.sh frontend-test
 2. 按复杂度分类（简单/中等/复杂），简单页面自动确认
 3. 生成 `flows.md`，包含每页的操作流程、异常分支、[预期]断言
 4. 自动检查 API 覆盖率、路由一致性
+
+### /spec-dev
+
+按规格文档驱动开发 + 自动验证打回：
+1. 检测 DESIGN.md / api-contract.yaml / flows.md 是否齐全（缺则 STOP）
+2. 用任务关键词在契约里切出相关端点的完整 schema
+3. 从 flows.md 提取 [预期] 断言（HARD REQUIREMENTS）
+4. 组装「上下文包」注入子 agent 开发
+5. 开发后调用 spec-verify，FAIL 则把问题回灌子 agent 重试，最多 3 轮
+6. 超过 3 轮标记人工介入
+
+### /spec-verify
+
+代码与契约一致性检查（只读，不自动改代码）：
+1. **API 路径一致性** — 前端调用路径 vs 契约定义，方法匹配
+2. **API 参数一致性** — query/body 参数名、类型、必填项
+3. **flows.md 断言覆盖率** — 每条 [预期] 在代码中是否有实现（语义匹配）
+4. **CSS Token 合规** — 页面代码不硬编码颜色
+5. **禁止模式扫描** — prompt()/alert()、纯文字 loading、伪造数据等
 
 ### /frontend-test
 

@@ -3,11 +3,11 @@ set -euo pipefail
 
 # Claude Code Skills Uninstaller
 # Usage: ./uninstall.sh [skill-name...]
-#   No args  → uninstall all 3 skills
+#   No args  → uninstall all 5 skills
 #   With args → uninstall only named skills
 
 SKILLS_DIR="$HOME/.claude/skills"
-AVAILABLE_SKILLS=(api-design flow-extract frontend-test)
+AVAILABLE_SKILLS=(api-design flow-extract frontend-test spec-dev spec-verify)
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

@@ -3,14 +3,15 @@ set -euo pipefail
 
 # Claude Code Skills Installer
 # Usage:
-#   Local:  ./install.sh [skill-name...]
-#   Remote: bash <(curl -fsSL .../install.sh) [skill-name...]
-#   No args → install all 3 skills
+#   Local:  ./install.sh [--all] [skill-name...]
+#   Remote: bash <(curl -fsSL .../install.sh) [--all] [skill-name...]
+#   No args → install 3 core skills; --all → install all 5
 
 REPO="rainmancswh-dot/claude-skills"
 BRANCH="main"
 SKILLS_DIR="$HOME/.claude/skills"
-AVAILABLE_SKILLS=(api-design flow-extract frontend-test)
+DEFAULT_SKILLS=(api-design flow-extract frontend-test)
+AVAILABLE_SKILLS=(api-design flow-extract frontend-test spec-dev spec-verify)
 
 # Colors
 GREEN='\033[0;32m'
@@ -43,18 +44,28 @@ if [ ! -d "$SCRIPT_DIR/api-design" ]; then
 fi
 
 # Determine which skills to install
-if [ $# -eq 0 ]; then
-  INSTALL_SKILLS=("${AVAILABLE_SKILLS[@]}")
-else
-  INSTALL_SKILLS=()
-  for name in "$@"; do
-    if [[ " ${AVAILABLE_SKILLS[*]} " == *" $name "* ]]; then
-      INSTALL_SKILLS+=("$name")
-    else
-      error "Unknown skill: $name (available: ${AVAILABLE_SKILLS[*]})"
-      exit 1
-    fi
-  done
+INSTALL_ALL=false
+INSTALL_SKILLS=()
+for arg in "$@"; do
+  case "$arg" in
+    --all) INSTALL_ALL=true ;;
+    *)
+      if [[ " ${AVAILABLE_SKILLS[*]} " == *" $arg "* ]]; then
+        INSTALL_SKILLS+=("$arg")
+      else
+        error "Unknown skill: $arg (available: ${AVAILABLE_SKILLS[*]})"
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+if [ ${#INSTALL_SKILLS[@]} -eq 0 ]; then
+  if [ "$INSTALL_ALL" = true ]; then
+    INSTALL_SKILLS=("${AVAILABLE_SKILLS[@]}")
+  else
+    INSTALL_SKILLS=("${DEFAULT_SKILLS[@]}")
+  fi
 fi
 
 echo ""
