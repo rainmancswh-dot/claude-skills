@@ -167,6 +167,56 @@ For each entity, infer the standard interfaces:
 | Delete | DELETE | /api/{entities}/:id | ⚠️ soft vs hard delete |
 | Custom actions | varies | varies | ❌ must ask |
 
+### 2.2.1 Universal Infrastructure Endpoints
+
+These endpoints are auto-generated for **every project**, no questions asked. They are not tied to any business entity.
+
+#### Frontend Error Reporting
+
+Every project needs a frontend error collection API so AI can diagnose production issues.
+
+```yaml
+POST /api/frontend-errors:
+  summary: Report a frontend error
+  requestBody:
+    error_type: string (required) — JS error type (TypeError, ReferenceError, etc.)
+    message: string (required) — error.message
+    stack: string (optional) — error.stack
+    page_url: string (required) — window.location.href
+    user_agent: string (required) — navigator.userAgent
+    timestamp: string (required) — ISO 8601, new Date().toISOString()
+    component_stack: string (optional) — React/Vue component stack trace
+  response 200:
+    code: 0
+    data: { id: string }
+
+GET /api/frontend-errors:
+  summary: List frontend errors (for AI / admin to query)
+  query params: page, size, error_type, start_date, end_date, page_url, status
+  response 200:
+    code: 0
+    data:
+      list: [ { id, error_type, message, page_url, timestamp, status, count } ]
+      total: number
+
+PATCH /api/frontend-errors/{id}:
+  summary: Update error status (mark as resolved / ignored)
+  requestBody:
+    status: string (required) — resolved | ignored | open
+  response 200:
+    code: 0
+    data: { id, status }
+
+DELETE /api/frontend-errors:
+  summary: Clear resolved errors
+  query params: before_date (optional)
+  response 200:
+    code: 0
+    data: { deleted_count: number }
+```
+
+These endpoints must appear in both `api-contract.md` and `api-contract.yaml`. Mark them with `[Infrastructure]` tag so downstream consumers know they are universal, not business-specific.
+
 ### 2.3 Classify What to Ask vs What to Infer
 
 **Auto-infer (don't ask):**

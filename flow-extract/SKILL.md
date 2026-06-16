@@ -332,6 +332,9 @@ Sidebar:
 
 - {异常场景1} [预期] {处理方式 — 错误提示/回退/重试}
 - {异常场景2} [预期] {处理方式}
+- JS 运行时错误 [预期] ErrorBoundary 捕获，自动 POST /api/frontend-errors 上报
+  [预期] 报错字段: error_type, message, stack, page_url, user_agent, timestamp
+  [预期] 上报不影响用户操作，静默发送
 
 ### 关联跳转
 

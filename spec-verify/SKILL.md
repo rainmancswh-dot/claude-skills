@@ -194,9 +194,40 @@ grep -rnE "% [0-9]" "$PROJECT_ROOT" --include="*.tsx" | grep -v node_modules
 ❌ DetailPage.tsx:40 — 发现 prompt()，应用 Modal 替代
 ```
 
----
+### Check 6: ErrorBoundary 与前端报错上报
 
-## Phase 3: 汇总结果
+**目标：** 每个页面组件必须被 ErrorBoundary 包裹，前端 JS 错误自动上报到 POST /api/frontend-errors。
+
+**检查方法：**
+
+```bash
+# 1. 检查是否存在 ErrorBoundary 组件定义
+grep -rn "ErrorBoundary\|error-boundary\|ErrorFallback\|ErrorBoundaryFallback" \
+  "$PROJECT_ROOT" --include="*.tsx" --include="*.jsx" | grep -v node_modules
+
+# 2. 检查页面文件是否被 ErrorBoundary 包裹或使用了全局 Error Boundary
+# 搜索项目入口文件或路由配置中的 ErrorBoundary 引用
+grep -rn "ErrorBoundary\|error.*boundary" \
+  "$PROJECT_ROOT" --include="*.tsx" --include="*.jsx" | grep -v node_modules | grep -iv "test"
+```
+
+**输出：**
+```
+ErrorBoundary 检查:
+✅ ErrorBoundary 组件已定义 (src/components/ErrorBoundary.tsx)
+✅ 全局路由被 ErrorBoundary 包裹 (src/main.tsx:12)
+或
+❌ 未找到 ErrorBoundary — 每个页面必须有, 实现参考: https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
+```
+
+**上报验证（不强制，建议性检查）：**
+
+```bash
+# 检查 ErrorBoundary 的 componentDidCatch / onError 回调是否调用上报 API
+grep -A10 "componentDidCatch\|onError\|catch" \
+  "$PROJECT_ROOT" --include="*.tsx" \
+  | grep -E "frontend.error|fetch.*error|api.*error" || echo "⚠️ 建议在 ErrorBoundary 中添加 POST /api/frontend-errors 上报"
+```
 
 ### 3.1 计算通过率
 
