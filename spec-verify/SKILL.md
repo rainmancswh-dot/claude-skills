@@ -39,7 +39,7 @@ fi
 ### 1.2 确认契约文档存在
 
 ```bash
-ls "$PROJECT_ROOT/api-contract.yaml" "$PROJECT_ROOT/flows.md" "$PROJECT_ROOT/DESIGN.md" 2>&1
+ls "$PROJECT_ROOT/docs/api-contract.yaml" "$PROJECT_ROOT/docs/flows.md" "$PROJECT_ROOT/docs/DESIGN.md" 2>&1
 ```
 
 缺失任何一个 → 报告无法验证，建议先运行对应 skill。
@@ -72,7 +72,7 @@ fi
 ```bash
 python3 -c "
 import yaml
-with open('$PROJECT_ROOT/api-contract.yaml') as f:
+with open('$PROJECT_ROOT/docs/api-contract.yaml') as f:
     spec = yaml.safe_load(f)
 for path, methods in spec.get('paths', {}).items():
     for method in ['get', 'post', 'put', 'patch', 'delete']:

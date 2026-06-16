@@ -50,11 +50,26 @@ if [ -z "$PROJECT_ROOT" ]; then
 fi
 ```
 
-### 1.2 Find API Contract (Required)
+### 1.2 Read CONTEXT.md (Recommended)
 
 ```bash
-if [ -f "$PROJECT_ROOT/api-contract.md" ]; then
-  echo "API_CONTRACT: $PROJECT_ROOT/api-contract.md"
+if [ -f "$PROJECT_ROOT/CONTEXT.md" ]; then
+  echo "CONTEXT: $PROJECT_ROOT/CONTEXT.md"
+else
+  echo "NO_CONTEXT"
+fi
+```
+
+If CONTEXT.md exists, read it and use its terminology for all page names, navigation labels, and user-visible text. Flow descriptions must use the canonical terms defined in CONTEXT.md.
+
+If CONTEXT.md does not exist, warn:
+> ⚠️ No CONTEXT.md found. Consider running /grill-with-docs to establish domain language.
+
+### 1.3 Find API Contract (Required)
+
+```bash
+if [ -f "$PROJECT_ROOT/docs/api-contract.md" ]; then
+  echo "API_CONTRACT: $PROJECT_ROOT/docs/api-contract.md"
 else
   echo "NO_API_CONTRACT"
 fi
@@ -62,7 +77,7 @@ fi
 
 If NO_API_CONTRACT, STOP and tell user to run `/api-design` first.
 
-### 1.3 Find Design Doc (Optional)
+### 1.4 Find Design Doc (Optional)
 
 ```bash
 setopt +o nomatch 2>/dev/null || true
@@ -73,7 +88,7 @@ ENG_TEST_PLAN=$(ls -t ~/.gstack/projects/$SLUG/*-eng-review-test-plan-*.md 2>/de
 
 Read design doc and eng review if found.
 
-### 1.4 Find Existing Routes/Pages (Optional)
+### 1.5 Find Existing Routes/Pages (Optional)
 
 Scan the project for existing frontend routes:
 
@@ -93,11 +108,11 @@ find "$PROJECT_ROOT/src" -type d \( -name "pages" -o -name "views" -o -name "rou
 
 If routes found, extract existing page list for reference.
 
-### 1.5 Check Existing flows.md
+### 1.6 Check Existing flows.md
 
 ```bash
-if [ -f "$PROJECT_ROOT/flows.md" ]; then
-  echo "EXISTING_FLOWS: $PROJECT_ROOT/flows.md"
+if [ -f "$PROJECT_ROOT/docs/flows.md" ]; then
+  echo "EXISTING_FLOWS: $PROJECT_ROOT/docs/flows.md"
 fi
 ```
 
@@ -111,6 +126,7 @@ If existing flows.md found, ask:
 
 Store for subsequent phases:
 - `PROJECT_ROOT`: absolute path
+- `CONTEXT`: CONTEXT.md content or empty (canonical terminology)
 - `API_CONTRACT`: api-contract.md content (required)
 - `DESIGN_DOC`: design doc content or empty
 - `ENG_REVIEW`: eng review content or empty
@@ -270,7 +286,7 @@ If a page only has standard list/pagination and all interactions are obvious fro
 
 ### 4.1 Generate flows.md
 
-Write to `$PROJECT_ROOT/flows.md`:
+Write to `$PROJECT_ROOT/docs/flows.md`:
 
 ```markdown
 # Frontend Interaction Flows — {Project Name}
@@ -345,10 +361,10 @@ Self-Check Results:
 **How to check rule 1 (API coverage):**
 ```bash
 # Extract all endpoints from api-contract.md
-grep -oP '(GET|POST|PUT|PATCH|DELETE)\s+/api/[^\s]+' "$PROJECT_ROOT/api-contract.md" | sort -u > /tmp/api_endpoints.txt
+grep -oP '(GET|POST|PUT|PATCH|DELETE)\s+/api/[^\s]+' "$PROJECT_ROOT/docs/api-contract.md" | sort -u > /tmp/api_endpoints.txt
 
 # Extract all API references from flows.md
-grep -oP '(GET|POST|PUT|PATCH|DELETE)\s+/api/[^\s,)]+' "$PROJECT_ROOT/flows.md" | sort -u > /tmp/flow_endpoints.txt
+grep -oP '(GET|POST|PUT|PATCH|DELETE)\s+/api/[^\s,)]+' "$PROJECT_ROOT/docs/flows.md" | sort -u > /tmp/flow_endpoints.txt
 
 # Find uncovered endpoints
 comm -23 /tmp/api_endpoints.txt /tmp/flow_endpoints.txt
@@ -358,16 +374,16 @@ comm -23 /tmp/api_endpoints.txt /tmp/flow_endpoints.txt
 **How to check rule 2 (route consistency):**
 ```bash
 # Extract routes from flows.md
-grep -oP 'Route.*?`(/[^`]+)`' "$PROJECT_ROOT/flows.md" | sort | uniq -d
+grep -oP 'Route.*?`(/[^`]+)`' "$PROJECT_ROOT/docs/flows.md" | sort | uniq -d
 # Any duplicate = VIOLATION.
 ```
 
 **How to check rule 3 (flow completeness):**
 ```bash
 # Every Flow section should have 操作流程 and 异常分支
-for flow in $(grep -n "^## Flow:" "$PROJECT_ROOT/flows.md"); do
+for flow in $(grep -n "^## Flow:" "$PROJECT_ROOT/docs/flows.md"); do
   start=$(echo "$flow" | cut -d: -f1)
-  section=$(sed -n "${start},\$p" "$PROJECT_ROOT/flows.md" | head -50)
+  section=$(sed -n "${start},\$p" "$PROJECT_ROOT/docs/flows.md" | head -50)
   echo "$section" | grep -q "### 操作流程" || echo "MISSING 操作流程 in flow at line $start"
   echo "$section" | grep -q "### 异常分支" || echo "MISSING 异常分支 in flow at line $start"
 done
@@ -376,16 +392,16 @@ done
 **How to check rule 4 (assertion quality):**
 ```bash
 # Count [预期] per flow — should have at least 2
-grep -c "\[预期\]" "$PROJECT_ROOT/flows.md"
+grep -c "\[预期\]" "$PROJECT_ROOT/docs/flows.md"
 # If very low relative to number of flows, assertions are missing.
 ```
 
 **How to check rule 5 (navigation consistency):**
 ```bash
 # All referenced routes in 关联跳转 should exist in Route definitions
-grep -oP '`/[^`]+`' "$PROJECT_ROOT/flows.md" | sort -u
+grep -oP '`/[^`]+`' "$PROJECT_ROOT/docs/flows.md" | sort -u
 # Cross-check with Route: lines
-grep -oP 'Route.*?`(/[^`]+)`' "$PROJECT_ROOT/flows.md" | grep -oP '/[^`]+'
+grep -oP 'Route.*?`(/[^`]+)`' "$PROJECT_ROOT/docs/flows.md" | grep -oP '/[^`]+'
 ```
 
 If ANY check shows FAIL, fix the file immediately and re-run ALL checks. Do NOT proceed to 4.3 until all checks PASS.
@@ -412,7 +428,7 @@ If C: return to Phase 2.
 
 ```bash
 cd "$PROJECT_ROOT"
-git add flows.md
+git add docs/flows.md
 git commit -m "docs: add frontend interaction flows generated by /flow-extract"
 ```
 
@@ -424,10 +440,10 @@ This skill produces files consumed by:
 
 | Consumer | File | How |
 |----------|------|-----|
-| `/write-plan` | flows.md | Break into implementation tasks per page/flow |
-| subagent-develop | flows.md + api-contract.md | Generate frontend code with flow constraints |
-| Playwright test generation | flows.md + api-contract.yaml | Generate E2E test scenarios from flow steps |
-| `/frontend-test` | flows.md | Generate component tests aligned with flow assertions |
+| `/write-plan` | docs/flows.md | Break into implementation tasks per page/flow |
+| subagent-develop | docs/flows.md + docs/api-contract.md | Generate frontend code with flow constraints |
+| Playwright test generation | docs/flows.md + docs/api-contract.yaml | Generate E2E test scenarios from flow steps |
+| `/frontend-test` | docs/flows.md | Generate component tests aligned with flow assertions |
 
 Each downstream skill should:
 1. Check for `flows.md` in project root
