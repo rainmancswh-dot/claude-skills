@@ -217,6 +217,77 @@ if [ ${#FAILED[@]} -gt 0 ]; then
   error "Failed: ${FAILED[*]}"
 fi
 
+# ── Inject Development Flow into CLAUDE.md ─────────────────
+
+DEVELOPMENT_FLOW_MARKER="## Development Flow"
+
+inject_claude_md() {
+  local CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+
+  # Don't overwrite if already present
+  if [ -f "$CLAUDE_MD" ] && grep -q "$DEVELOPMENT_FLOW_MARKER" "$CLAUDE_MD" 2>/dev/null; then
+    info "CLAUDE.md: Development Flow section already exists, skipping"
+    return 0
+  fi
+
+  # Create CLAUDE.md if it doesn't exist
+  if [ ! -f "$CLAUDE_MD" ]; then
+    touch "$CLAUDE_MD"
+    info "CLAUDE.md: created"
+  fi
+
+  # Backup
+  cp "$CLAUDE_MD" "$CLAUDE_MD.bak.$(date +%Y%m%d%H%M%S)"
+
+  cat >> "$CLAUDE_MD" << 'INJECT'
+## Development Flow（开发流程）
+
+新项目开发按此流程执行，每个阶段产出文档供下游消费。当用户表达开发意图时主动按此顺序推进。
+
+```
+Phase 1: 需求与设计
+  /office-hours         — 需求讨论，搞清楚产品是什么、给谁用、核心价值
+  /grill-with-docs      — 建立 CONTEXT.md 领域语言，收敛术语，产出共享词汇表
+  /plan-ceo-review      — 需求评审，确认范围
+  /plan-eng-review      — 技术评审，确认架构和技术选型
+
+Phase 2: 规格文档
+  /api-design           — 生成 API 契约（api-contract.yaml + api-contract.md）
+  /flow-extract         — 生成前端交互流程（flows.md），含 [预期] 断言
+  /design-prototype     — 生成 open-design 提示词，校验产物，归档原型到 docs/
+
+Phase 3: 计划与开发
+  writing-plans         — superpowers 插件，基于规格文档产出开发计划
+  /spec-dev             — 按计划逐任务开发（上下文注入 → 子 agent → 验证 → 打回 ≤3）
+
+Phase 4: 测试
+  /spec-verify          — spec-dev 自动调用，检查代码是否与契约/流程一致
+  /frontend-test        — 前端组件测试，自动扫描 + 生成 Vitest 用例
+
+关键规则：
+- 所有产出文档统一放在项目根目录下，CONTEXT.md 在根目录，其余在 docs/ 子目录
+  - gstack skill（office-hours/ceo-review/eng-review）默认输出到 ~/.gstack/，完成后 agent 将关键文档复制到 docs/
+  - grill-with-docs → CONTEXT.md（项目根目录）
+  - api-design → docs/api-contract.yaml + docs/api-contract.md
+  - flow-extract → docs/flows.md
+  - design-prototype → docs/open-design-prompt.md + docs/prototype/
+  - writing-plans → docs/plans/
+- CONTEXT.md 在 grill-with-docs 之后存在于项目根目录，下游所有 skill 必须读取并遵循其术语
+- invoke 外部 skill（ceo-review、eng-review、writing-plans）前，agent 先读取项目根目录的上游文档，将内容作为上下文传入
+  - ceo-review: 传入 CONTEXT.md
+  - eng-review: 传入 CONTEXT.md + DESIGN.md
+  - writing-plans: 传入 CONTEXT.md + DESIGN.md + docs/api-contract.yaml + docs/flows.md + docs/prototype/
+- 后端子 agent（spec-dev 内）：强制 TDD，先写失败测试再写代码
+- 前端子 agent（spec-dev 内）：返回前跑已有测试，不破已有功能
+- spec-dev 打回循环：一次只修一个问题，先设假设再改，修完自检
+INJECT
+
+  info "CLAUDE.md: Development Flow section injected"
+  echo "  (backup saved to $CLAUDE_MD.bak.*)"
+}
+
+inject_claude_md
+
 echo ""
 echo "  Restart Claude Code and run:"
 echo "    /office-hours     — 需求讨论"
