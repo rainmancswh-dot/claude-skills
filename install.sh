@@ -37,26 +37,22 @@ step()  { echo -e "${BLUE}→${NC} $1"; }
 # ── Dependency helpers ─────────────────────────────────────
 
 setup-grill() {
-  step "Installing grill-with-docs from mattpocock/skills..."
+  step "Installing grill-with-docs (vendored)..."
+  local src="$SCRIPT_DIR/grill-with-docs"
   local dir="$HOME/.claude/skills/grill-with-docs"
+
+  if [ ! -f "$src/SKILL.md" ]; then
+    error "grill-with-docs: source not found in repo"
+    return 1
+  fi
+
   mkdir -p "$dir"
-
-  local files=(
-    "SKILL.md"
-    "CONTEXT-FORMAT.md"
-    "ADR-FORMAT.md"
-  )
-  local base="https://raw.githubusercontent.com/mattpocock/skills/main/skills/engineering/grill-with-docs"
-
-  for f in "${files[@]}"; do
-    if curl -fsSL --retry 2 "$base/$f" -o "$dir/$f" 2>/dev/null; then
-      info "grill-with-docs: downloaded $f"
-    else
-      error "grill-with-docs: failed to download $f"
-      return 1
-    fi
-  done
-  info "grill-with-docs: installed"
+  if cp -r "$src/." "$dir/"; then
+    info "grill-with-docs: installed"
+  else
+    error "grill-with-docs: copy failed"
+    return 1
+  fi
 }
 
 setup-gstack() {
