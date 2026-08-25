@@ -1,6 +1,6 @@
 # 🛠 Claude Code Skills — Spec-Driven Frontend Pipeline
 
-五个 Claude Code 自定义 skill，覆盖从 API 设计到前端开发、验证、测试的完整流程。
+六个 Claude Code 自定义 skill + 一个 vendored skill，覆盖从需求收敛到前端开发、验证、测试的完整流程。
 
 ## Skills
 
@@ -11,36 +11,43 @@
 | **spec-dev** | `/spec-dev` | 按规格文档驱动开发，注入上下文到子 agent，自动验证打回 |
 | **spec-verify** | `/spec-verify` | 检查代码与 API 契约、交互流程的一致性 |
 | **frontend-test** | `/frontend-test` | 自动化前端组件测试，含自修复循环 |
+| **design-prototype** | `/design-prototype` | 从规格文档生成 open-design 提示词，校验原型产物，归档到 docs/ |
+| **grill-with-docs**（vendored） | `/grill-with-docs` | 拷问式需求收敛，建立 CONTEXT.md 领域语言（源出 mattpocock/skills，已内置） |
 
 ### 流水线关系
 
 ```
-/api-design → api-contract.md/yaml
+Phase 1  /office-hours → /grill-with-docs（CONTEXT.md）→ /plan-ceo-review → /plan-eng-review
                 ↓
-          /flow-extract → flows.md
+Phase 2  /api-design → api-contract.md/yaml
+           /flow-extract → flows.md
+           /design-prototype → open-design-prompt.md + 原型
                 ↓
-          /spec-dev → 代码（调用 /spec-verify 验证，不过则打回重试）
+Phase 3  writing-plans（superpowers）→ docs/plans/
+           /spec-dev → 代码（调用 /spec-verify 验证，不过则打回重试 ≤3 轮）
                 ↓
-          /frontend-test → 组件测试
+Phase 4  /frontend-test → 组件测试
 ```
+
+完整编排规则（各阶段文档放哪、上下游怎么传上下文）由 install.sh 自动注入 `~/.claude/CLAUDE.md` 的 **Development Flow** 段。
 
 ## 安装
 
-### 方式一：curl 一行安装（推荐，默认装 3 个核心 skill）
+### 方式一：curl 一行安装（推荐）
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh)
 ```
 
-自动检测远程执行，clone 仓库后安装。
+自动检测远程执行，clone 仓库后安装。默认装全部 6 个 skill，并自动：
 
-### 装指定 skill 或全部（含 spec-dev / spec-verify）
+- 安装 vendored 的 `grill-with-docs`（缺失时）
+- 检查外部依赖（gstack、superpowers），缺失时打印手动安装指引
+- 向 `~/.claude/CLAUDE.md` 注入 **Development Flow 编排段**（已有则跳过，改前自动备份）
+
+### 装指定 skill
 
 ```bash
-# 全部 5 个
-bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh) --all
-
-# 指定
 bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skills/main/install.sh) api-design spec-dev spec-verify
 ```
 
@@ -48,10 +55,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rainmancswh-dot/claude-skill
 
 ```bash
 git clone https://github.com/rainmancswh-dot/claude-skills.git
-bash claude-skills/install.sh              # 默认 3 个核心 skill
-bash claude-skills/install.sh --all        # 全部 5 个
+bash claude-skills/install.sh              # 默认全部 6 个
 bash claude-skills/install.sh spec-dev     # 指定
+bash claude-skills/install.sh --check-deps # 只检查依赖，不装 skill
 ```
+
+## 外部依赖（完整流程需要）
+
+本仓库的 skill 之外，完整 Development Flow 还依赖两个外部工具，install.sh 只提示、不代装：
+
+| 依赖 | 用途 | 安装 |
+|------|------|------|
+| **gstack** | Phase 1 的 `/office-hours`、`/plan-ceo-review`、`/plan-eng-review` | `git clone <gstack-repo> ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup` |
+| **superpowers 插件** | Phase 3 的 `writing-plans` | Claude Code 内执行 `/plugin install superpowers@superpowers-marketplace` |
+
+只用到 Phase 2 之后（`/api-design` → `/spec-dev`）的话，不装这两个也能跑。
 
 ## 卸载
 
@@ -85,6 +103,15 @@ bash /tmp/claude-skills/uninstall.sh spec-dev   # 只卸载指定的
 - **必需**：前端项目（React / Vue / Next.js），已安装 Vitest + Testing Library
 - **可选**：gstack browse（用于失败组件截图）
 - 自动检测框架和测试依赖，缺少时会提示安装命令
+
+### design-prototype
+- **必需**：`api-contract.yaml` + `flows.md`
+- 生成 open-design 提示词，原型产物归档到 `docs/prototype/`
+
+### grill-with-docs
+- **必需**：一个想清楚的计划/想法
+- 产出 `CONTEXT.md`（项目根目录），下游所有 skill 读取并遵循其术语
+- Phase 1 的核心环节，缺了它整条流程的领域语言就断了
 
 ## 各 Skill 详解
 
